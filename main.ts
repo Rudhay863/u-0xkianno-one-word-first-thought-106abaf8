@@ -9,7 +9,7 @@
 // readers expect it), and its sibilance is a small spark of wit: the word
 // itself sounds like what it names.
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 
 const WORD = "susurrus";
 const OUTPUT_PATH = "/output/entry.txt";
@@ -25,4 +25,16 @@ if (!/^\S+$/.test(WORD)) {
 }
 
 mkdirSync("/output", { recursive: true });
-writeFileSync(OUTPUT_PATH, WORD, "utf8");
+
+// Write atomically via a temp file + rename, so a crash mid-write can
+// never leave a partial entry behind, then read the result back and
+// verify byte-for-byte that it is exactly the word before exiting.
+const tmpPath = `${OUTPUT_PATH}.tmp`;
+writeFileSync(tmpPath, WORD, "utf8");
+renameSync(tmpPath, OUTPUT_PATH);
+const written = readFileSync(OUTPUT_PATH, "utf8");
+if (written !== WORD) {
+  throw new Error(
+    `verification failed: entry.txt holds ${JSON.stringify(written)}, expected ${JSON.stringify(WORD)}`,
+  );
+}
